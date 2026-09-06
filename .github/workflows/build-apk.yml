@@ -1,0 +1,46 @@
+name: Build StudyMap APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Create Flutter Android project
+        run: |
+          flutter create --project-name studymap_final temp_project
+
+      - name: Copy StudyMap source
+        run: |
+          cp -r lib temp_project/
+          cp pubspec.yaml temp_project/
+
+      - name: Get packages
+        working-directory: temp_project
+        run: flutter pub get
+
+      - name: Build APK
+        working-directory: temp_project
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: StudyMap-APK
+          path: temp_project/build/app/outputs/flutter-apk/app-release.apk
