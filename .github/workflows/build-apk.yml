@@ -12,7 +12,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -22,14 +22,18 @@ jobs:
         with:
           channel: stable
 
-      - name: Create Flutter Android project
+      - name: Extract StudyMap V2
+        run: |
+          unzip -o StudyMap_Final_Merge_V2_Firebase_Base.zip -d source
+
+      - name: Create Flutter project
         run: |
           flutter create --project-name studymap_final temp_project
 
-      - name: Copy StudyMap source
+      - name: Copy StudyMap files
         run: |
-          cp -r lib temp_project/
-          cp pubspec.yaml temp_project/
+          cp -r source/lib temp_project/
+          cp source/pubspec.yaml temp_project/pubspec.yaml
 
       - name: Get packages
         working-directory: temp_project
