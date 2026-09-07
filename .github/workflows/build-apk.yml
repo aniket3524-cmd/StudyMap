@@ -25,7 +25,7 @@ jobs:
       - name: Extract Final Merge project
         run: |
           mkdir source_project
-          unzip -o "StudyMap_Final_Merge_V2_Firebase_Base_UPDATED_FIXED.zip" -d source_project
+          unzip -o "StudyMap_Final_Merge_V2_Firebase_Base_UPDATED_FIXED_V2.zip" -d source_project
 
       - name: Create Flutter Android project
         run: |
