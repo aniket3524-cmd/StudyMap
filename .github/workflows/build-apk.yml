@@ -11,428 +11,73 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Flutter
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
 
-      - name: Create Flutter project
+      - name: Extract Final Merge project
         run: |
-          flutter create --project-name studymap temp_project
+          mkdir source_project
+          unzip -o "StudyMap_Final_Merge_V2_Firebase_Base.zip" -d source_project
 
-      - name: Replace main.dart
+      - name: Create Flutter Android project
         run: |
-          cat > temp_project/lib/main.dart <<'EOF'
-          import 'package:flutter/material.dart';
+          flutter create --project-name learning --org com.studymap temp_project
 
-          void main() {
-            runApp(const StudyMapApp());
-          }
+      - name: Copy StudyMap source files
+        run: |
+          cp source_project/lib/main.dart temp_project/lib/main.dart
+          cp source_project/pubspec.yaml temp_project/pubspec.yaml
 
-          class StudyMapApp extends StatelessWidget {
-            const StudyMapApp({super.key});
+      - name: Add Firebase configuration
+        working-directory: temp_project
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
 
-            @override
-            Widget build(BuildContext context) {
-              return MaterialApp(
-                debugShowCheckedModeBanner: false,
-                title: 'StudyMap',
-                theme: ThemeData(
-                  useMaterial3: true,
-                  colorSchemeSeed: Colors.indigo,
-                ),
-                home: const WelcomeScreen(),
-              );
-            }
-          }
+      - name: Configure Google Services plugin
+        working-directory: temp_project
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
 
-          class WelcomeScreen extends StatelessWidget {
-            const WelcomeScreen({super.key});
+          settings = Path("android/settings.gradle.kts")
+          text = settings.read_text()
 
-            @override
-            Widget build(BuildContext context) {
-              return Scaffold(
-                body: SafeArea(
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.map_outlined,
-                            size: 100,
-                          ),
-                          const SizedBox(height: 20),
-                          const Text(
-                            'StudyMap',
-                            style: TextStyle(
-                              fontSize: 38,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          const Text(
-                            'Your smart study planning app',
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 35),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const LoginScreen(),
-                                  ),
-                                );
-                              },
-                              child: const Padding(
-                                padding: EdgeInsets.all(14),
-                                child: Text('Login'),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          TextButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const SignupScreen(),
-                                ),
-                              );
-                            },
-                            child: const Text('Create Account'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }
-          }
+          if "com.google.gms.google-services" not in text:
+              marker = 'id("com.android.application") version "'
+              pos = text.find(marker)
+              if pos != -1:
+                  line_end = text.find("\n", pos)
+                  text = text[:line_end+1] + '    id("com.google.gms.google-services") version "4.4.2" apply false\n' + text[line_end+1:]
 
-          class LoginScreen extends StatelessWidget {
-            const LoginScreen({super.key});
+          settings.write_text(text)
 
-            @override
-            Widget build(BuildContext context) {
-              return Scaffold(
-                appBar: AppBar(title: const Text('Login')),
-                body: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      const TextField(
-                        decoration: InputDecoration(
-                          labelText: 'Email',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const TextField(
-                        obscureText: true,
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          onPressed: () {
-                            Navigator.pushAndRemoveUntil(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const HomeScreen(),
-                              ),
-                              (route) => false,
-                            );
-                          },
-                          child: const Text('Login'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-          }
+          app = Path("android/app/build.gradle.kts")
+          text = app.read_text()
 
-          class SignupScreen extends StatelessWidget {
-            const SignupScreen({super.key});
+          if 'id("com.google.gms.google-services")' not in text:
+              marker = 'id("com.android.application")'
+              text = text.replace(
+                  marker,
+                  marker + '\n    id("com.google.gms.google-services")',
+                  1
+              )
 
-            @override
-            Widget build(BuildContext context) {
-              return Scaffold(
-                appBar: AppBar(title: const Text('Create Account')),
-                body: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      const TextField(
-                        decoration: InputDecoration(
-                          labelText: 'Full Name',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const TextField(
-                        decoration: InputDecoration(
-                          labelText: 'Email',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const TextField(
-                        obscureText: true,
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          onPressed: () {
-                            Navigator.pushAndRemoveUntil(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const HomeScreen(),
-                              ),
-                              (route) => false,
-                            );
-                          },
-                          child: const Text('Create Account'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-          }
+          app.write_text(text)
+          PY
 
-          class HomeScreen extends StatefulWidget {
-            const HomeScreen({super.key});
-
-            @override
-            State<HomeScreen> createState() => _HomeScreenState();
-          }
-
-          class _HomeScreenState extends State<HomeScreen> {
-            int index = 0;
-
-            final pages = const [
-              DashboardPage(),
-              SyllabusPage(),
-              RoadmapPage(),
-              TimetablePage(),
-              ProgressPage(),
-            ];
-
-            @override
-            Widget build(BuildContext context) {
-              return Scaffold(
-                appBar: AppBar(
-                  title: const Text('StudyMap'),
-                ),
-                body: pages[index],
-                bottomNavigationBar: NavigationBar(
-                  selectedIndex: index,
-                  onDestinationSelected: (value) {
-                    setState(() {
-                      index = value;
-                    });
-                  },
-                  destinations: const [
-                    NavigationDestination(
-                      icon: Icon(Icons.home_outlined),
-                      label: 'Home',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.menu_book_outlined),
-                      label: 'Syllabus',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.map_outlined),
-                      label: 'Roadmap',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.calendar_month_outlined),
-                      label: 'Timetable',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.bar_chart_outlined),
-                      label: 'Progress',
-                    ),
-                  ],
-                ),
-              );
-            }
-          }
-
-          class DashboardPage extends StatelessWidget {
-            const DashboardPage({super.key});
-
-            @override
-            Widget build(BuildContext context) {
-              return const Center(
-                child: Text(
-                  'Welcome to StudyMap 👋',
-                  style: TextStyle(
-                    fontSize: 25,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              );
-            }
-          }
-
-          class SyllabusPage extends StatelessWidget {
-            const SyllabusPage({super.key});
-
-            @override
-            Widget build(BuildContext context) {
-              return ListView(
-                padding: const EdgeInsets.all(20),
-                children: const [
-                  Text(
-                    'Auto Syllabus 📚',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 20),
-                  Card(
-                    child: ListTile(title: Text('English')),
-                  ),
-                  Card(
-                    child: ListTile(title: Text('Political Science')),
-                  ),
-                  Card(
-                    child: ListTile(title: Text('History')),
-                  ),
-                  Card(
-                    child: ListTile(title: Text('Economics')),
-                  ),
-                ],
-              );
-            }
-          }
-
-          class RoadmapPage extends StatelessWidget {
-            const RoadmapPage({super.key});
-
-            @override
-            Widget build(BuildContext context) {
-              return ListView(
-                padding: const EdgeInsets.all(20),
-                children: const [
-                  Text(
-                    'Smart Roadmap 🗺️',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 20),
-                  Card(
-                    child: ListTile(
-                      title: Text('1. Set your study goal'),
-                    ),
-                  ),
-                  Card(
-                    child: ListTile(
-                      title: Text('2. Complete syllabus'),
-                    ),
-                  ),
-                  Card(
-                    child: ListTile(
-                      title: Text('3. Practice questions'),
-                    ),
-                  ),
-                  Card(
-                    child: ListTile(
-                      title: Text('4. Revision & Mock Tests'),
-                    ),
-                  ),
-                ],
-              );
-            }
-          }
-
-          class TimetablePage extends StatelessWidget {
-            const TimetablePage({super.key});
-
-            @override
-            Widget build(BuildContext context) {
-              return ListView(
-                padding: const EdgeInsets.all(20),
-                children: const [
-                  Text(
-                    'Smart Timetable 📅',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 20),
-                  Card(
-                    child: ListTile(
-                      leading: Icon(Icons.wb_sunny_outlined),
-                      title: Text('Morning Study'),
-                    ),
-                  ),
-                  Card(
-                    child: ListTile(
-                      leading: Icon(Icons.sunny),
-                      title: Text('Afternoon Study'),
-                    ),
-                  ),
-                  Card(
-                    child: ListTile(
-                      leading: Icon(Icons.nights_stay_outlined),
-                      title: Text('Evening Revision'),
-                    ),
-                  ),
-                ],
-              );
-            }
-          }
-
-          class ProgressPage extends StatelessWidget {
-            const ProgressPage({super.key});
-
-            @override
-            Widget build(BuildContext context) {
-              return const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.bar_chart_outlined, size: 80),
-                    SizedBox(height: 20),
-                    Text(
-                      'Your Progress 📊',
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    Text('Start studying to track progress!'),
-                  ],
-                ),
-              );
-            }
-          }
-          EOF
+      - name: Get Flutter packages
+        working-directory: temp_project
+        run: flutter pub get
 
       - name: Build APK
         working-directory: temp_project
@@ -441,5 +86,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: StudyMap-APK-Fixed
+          name: StudyMap-APK
           path: temp_project/build/app/outputs/flutter-apk/app-release.apk
