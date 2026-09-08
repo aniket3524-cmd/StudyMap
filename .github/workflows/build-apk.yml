@@ -22,10 +22,13 @@ jobs:
         with:
           channel: stable
 
-      - name: Extract Final Merge project
-        run: |
-          mkdir source_project
-          unzip -o "StudyMap_Final_Merge_V2_Firebase_Base_UPDATED_FIXED_V2.zip" -d source_project
+      - name: Extract StudyMap updated project
+  run: |
+    mkdir source_project
+    unzip -o "StudyMap_Phase1_Updated.zip" -d source_project
+        
+          
+          
 
       - name: Create Flutter Android project
         run: |
