@@ -25,7 +25,7 @@ jobs:
       - name: Extract StudyMap project
         run: |
           mkdir source_project
-          unzip -o "StudyMap_Phase1_Updated_FIXED.zip" -d source_project
+          unzip -o "StudyMap_Updated_All_Features.zip" -d source_project
 
       - name: Create Flutter Android project
         run: |
