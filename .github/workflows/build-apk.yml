@@ -12,7 +12,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
@@ -22,13 +22,10 @@ jobs:
         with:
           channel: stable
 
-      - name: Extract StudyMap updated project
-  run: |
-    mkdir source_project
-    unzip -o "StudyMap_Phase1_Updated.zip" -d source_project
-        
-          
-          
+      - name: Extract StudyMap project
+        run: |
+          mkdir source_project
+          unzip -o "StudyMap_Phase1_Updated.zip" -d source_project
 
       - name: Create Flutter Android project
         run: |
@@ -44,6 +41,11 @@ jobs:
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "ERROR: GOOGLE_SERVICES_JSON secret is missing."
+            exit 1
+          fi
+
           printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
 
       - name: Configure Google Services plugin
@@ -55,27 +57,36 @@ jobs:
           settings = Path("android/settings.gradle.kts")
           text = settings.read_text()
 
-          if "com.google.gms.google-services" not in text:
-              marker = 'id("com.android.application") version "'
+          if 'id("com.google.gms.google-services")' not in text:
+              marker = 'id("com.android.application") version'
               pos = text.find(marker)
+
               if pos != -1:
                   line_end = text.find("\n", pos)
-                  text = text[:line_end+1] + '    id("com.google.gms.google-services") version "4.4.2" apply false\n' + text[line_end+1:]
+                  line = text[pos:line_end]
+                  version = line.split('"')[1]
 
-          settings.write_text(text)
+                  insert = f'\n    id("com.google.gms.google-services") version "4.4.2" apply false'
+                  text = text[:line_end] + insert + text[line_end:]
+
+                  settings.write_text(text)
 
           app = Path("android/app/build.gradle.kts")
-          text = app.read_text()
+          app_text = app.read_text()
 
-          if 'id("com.google.gms.google-services")' not in text:
+          if 'id("com.google.gms.google-services")' not in app_text:
               marker = 'id("com.android.application")'
-              text = text.replace(
-                  marker,
-                  marker + '\n    id("com.google.gms.google-services")',
-                  1
-              )
+              pos = app_text.find(marker)
 
-          app.write_text(text)
+              if pos != -1:
+                  line_end = app_text.find("\n", pos)
+                  app_text = (
+                      app_text[:line_end]
+                      + '\n    id("com.google.gms.google-services")'
+                      + app_text[line_end:]
+                  )
+
+                  app.write_text(app_text)
           PY
 
       - name: Get Flutter packages
