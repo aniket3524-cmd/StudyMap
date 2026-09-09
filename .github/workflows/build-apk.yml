@@ -36,34 +36,31 @@ jobs:
           cp source_project/lib/main.dart temp_project/lib/main.dart
           cp source_project/pubspec.yaml temp_project/pubspec.yaml
 
-      - name: Add Focus Lock native Android files
+      - name: Add Focus Lock files
         run: |
           rm -f temp_project/android/app/src/main/kotlin/com/studymap/learning/MainActivity.kt
-
           mkdir -p temp_project/android/app/src/main/java/com/studymap
           mkdir -p temp_project/android/app/src/main/res/xml
 
-          cp source_project/android/app/src/main/java/com/studymap/MainActivity.java \
-            temp_project/android/app/src/main/java/com/studymap/MainActivity.java
+          cp source_project/android/app/src/main/java/com/studymap/MainActivity.java temp_project/android/app/src/main/java/com/studymap/MainActivity.java
 
-          cp source_project/android/app/src/main/java/com/studymap/StudyMapAccessibilityService.java \
-            temp_project/android/app/src/main/java/com/studymap/StudyMapAccessibilityService.java
+          cp source_project/android/app/src/main/java/com/studymap/StudyMapAccessibilityService.java temp_project/android/app/src/main/java/com/studymap/StudyMapAccessibilityService.java
 
-          cat > temp_project/android/app/src/main/res/xml/studymap_accessibility_service.xml <<'EOF'
-<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged"
-    android:accessibilityFeedbackType="feedbackGeneric"
-    android:notificationTimeout="100"
-    android:canRetrieveWindowContent="false" />
-EOF
+          printf '%s\n' \
+            '<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"' \
+            '    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged"' \
+            '    android:accessibilityFeedbackType="feedbackGeneric"' \
+            '    android:notificationTimeout="100"' \
+            '    android:canRetrieveWindowContent="false" />' \
+            > temp_project/android/app/src/main/res/xml/studymap_accessibility_service.xml
 
-      - name: Configure Android package
+      - name: Configure Android
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
-          build_file = Path("temp_project/android/app/build.gradle.kts")
-          text = build_file.read_text()
+          build = Path("temp_project/android/app/build.gradle.kts")
+          text = build.read_text()
 
           text = text.replace(
               'namespace = "com.studymap.learning"',
@@ -77,29 +74,29 @@ EOF
 
           if 'id("com.google.gms.google-services")' not in text:
               text = text.replace(
-                  'plugins {',
+                  "plugins {",
                   'plugins {\n    id("com.google.gms.google-services")',
                   1
               )
 
-          build_file.write_text(text)
+          build.write_text(text)
 
-          settings_file = Path("temp_project/android/settings.gradle.kts")
-          settings = settings_file.read_text()
+          settings = Path("temp_project/android/settings.gradle.kts")
+          text = settings.read_text()
 
-          if 'com.google.gms.google-services' not in settings:
-              settings = settings.replace(
-                  'plugins {',
+          if 'com.google.gms.google-services' not in text:
+              text = text.replace(
+                  "plugins {",
                   'plugins {\n    id("com.google.gms.google-services") version "4.4.2" apply false',
                   1
               )
 
-          settings_file.write_text(settings)
+          settings.write_text(text)
 
           manifest = Path("temp_project/android/app/src/main/AndroidManifest.xml")
-          manifest_text = manifest.read_text()
+          text = manifest.read_text()
 
-          service = '''
+          service = """
         <service
             android:name="com.studymap.StudyMapAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
@@ -112,15 +109,12 @@ EOF
                 android:name="android.accessibilityservice"
                 android:resource="@xml/studymap_accessibility_service" />
         </service>
-'''
+"""
 
-          if "StudyMapAccessibilityService" not in manifest_text:
-              manifest_text = manifest_text.replace(
-                  "</application>",
-                  service + "\n    </application>"
-              )
+          if "StudyMapAccessibilityService" not in text:
+              text = text.replace("</application>", service + "\n    </application>")
 
-          manifest.write_text(manifest_text)
+          manifest.write_text(text)
           PY
 
       - name: Add Firebase configuration
@@ -134,37 +128,6 @@ EOF
           fi
 
           printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
-
-      - name: Configure Google Services plugin
-        working-directory: temp_project
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          settings = Path("android/settings.gradle.kts")
-          text = settings.read_text()
-
-          if 'id("com.google.gms.google-services")' not in text:
-              text = text.replace(
-                  "plugins {",
-                  'plugins {\n    id("com.google.gms.google-services") version "4.4.2" apply false',
-                  1
-              )
-
-          settings.write_text(text)
-
-          app = Path("android/app/build.gradle.kts")
-          app_text = app.read_text()
-
-          if 'id("com.google.gms.google-services")' not in app_text:
-              app_text = app_text.replace(
-                  "plugins {",
-                  'plugins {\n    id("com.google.gms.google-services")',
-                  1
-              )
-
-          app.write_text(app_text)
-          PY
 
       - name: Get Flutter dependencies
         working-directory: temp_project
