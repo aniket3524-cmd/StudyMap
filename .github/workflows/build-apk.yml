@@ -36,16 +36,26 @@ jobs:
           cp source_project/lib/main.dart temp_project/lib/main.dart
           cp source_project/pubspec.yaml temp_project/pubspec.yaml
 
-      - name: Copy Focus Lock files
+      - name: Add Focus Lock files
         run: |
           mkdir -p temp_project/android/app/src/main/java/com/studymap
           mkdir -p temp_project/android/app/src/main/res/xml
+
           cp source_project/android/app/src/main/java/com/studymap/MainActivity.java temp_project/android/app/src/main/java/com/studymap/MainActivity.java
+
           cp source_project/android/app/src/main/java/com/studymap/StudyMapAccessibilityService.java temp_project/android/app/src/main/java/com/studymap/StudyMapAccessibilityService.java
 
-      - name: Fix Accessibility XML
+      - name: Fix Focus Lock Java
         run: |
-          python3 -c "from pathlib import Path; p=Path('temp_project/android/app/src/main/res/xml/studymap_accessibility_service.xml'); p.write_text('<accessibility-service xmlns:android=\"http://schemas.android.com/apk/res/android\" android:accessibilityEventTypes=\"typeWindowStateChanged|typeWindowsChanged\" android:accessibilityFeedbackType=\"feedbackGeneric\" android:notificationTimeout=\"100\" android:canRetrieveWindowContent=\"false\" />\n')"
+          FILE="temp_project/android/app/src/main/java/com/studymap/StudyMapAccessibilityService.java"
+
+          if ! grep -q "AccessibilityServiceInfo;" "$FILE"; then
+            sed -i '/^import android.accessibilityservice.AccessibilityService;/a import android.accessibilityservice.AccessibilityServiceInfo;' "$FILE"
+          fi
+
+      - name: Create Accessibility XML
+        run: |
+          printf '%s\n' '<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android" android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged" android:accessibilityFeedbackType="feedbackGeneric" android:notificationTimeout="100" android:canRetrieveWindowContent="false" />' > temp_project/android/app/src/main/res/xml/studymap_accessibility_service.xml
 
       - name: Configure Android package
         run: |
@@ -59,13 +69,18 @@ jobs:
 
       - name: Add Accessibility Service to Manifest
         run: |
-          python3 -c "from pathlib import Path; p=Path('temp_project/android/app/src/main/AndroidManifest.xml'); s=p.read_text(); x='''<service android:name=\"com.studymap.StudyMapAccessibilityService\" android:permission=\"android.permission.BIND_ACCESSIBILITY_SERVICE\" android:exported=\"false\" android:label=\"StudyMap Focus Lock\"><intent-filter><action android:name=\"android.accessibilityservice.AccessibilityService\" /></intent-filter><meta-data android:name=\"android.accessibilityservice\" android:resource=\"@xml/studymap_accessibility_service\" /></service>'''; p.write_text(s.replace('</application>',x+'</application>'))"
+          python3 -c "from pathlib import Path; p=Path('temp_project/android/app/src/main/AndroidManifest.xml'); s=p.read_text(); x='<service android:name=\"com.studymap.StudyMapAccessibilityService\" android:permission=\"android.permission.BIND_ACCESSIBILITY_SERVICE\" android:exported=\"false\" android:label=\"StudyMap Focus Lock\"><intent-filter><action android:name=\"android.accessibilityservice.AccessibilityService\" /></intent-filter><meta-data android:name=\"android.accessibilityservice\" android:resource=\"@xml/studymap_accessibility_service\" /></service>'; p.write_text(s.replace('</application>',x+'</application>'))"
 
       - name: Add Firebase
         working-directory: temp_project
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "GOOGLE_SERVICES_JSON secret is missing"
+            exit 1
+          fi
+
           printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
 
       - name: Get dependencies
