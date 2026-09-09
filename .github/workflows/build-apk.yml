@@ -49,11 +49,13 @@ jobs:
           cp source_project/android/app/src/main/java/com/studymap/StudyMapAccessibilityService.java \
             temp_project/android/app/src/main/java/com/studymap/StudyMapAccessibilityService.java
 
-          cp source_project/android/app/src/main/res/xml/studymap_accessibility_service.xml \
-            temp_project/android/app/src/main/res/xml/studymap_accessibility_service.xml
-
-          sed -i '/android:description=/d' \
-            temp_project/android/app/src/main/res/xml/studymap_accessibility_service.xml
+          cat > temp_project/android/app/src/main/res/xml/studymap_accessibility_service.xml <<'EOF'
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:notificationTimeout="100"
+    android:canRetrieveWindowContent="false" />
+EOF
 
       - name: Configure Android package
         run: |
@@ -98,19 +100,19 @@ jobs:
           manifest_text = manifest.read_text()
 
           service = '''
-              <service
-                  android:name="com.studymap.StudyMapAccessibilityService"
-                  android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-                  android:exported="false"
-                  android:label="StudyMap Focus Lock">
-                  <intent-filter>
-                      <action android:name="android.accessibilityservice.AccessibilityService" />
-                  </intent-filter>
-                  <meta-data
-                      android:name="android.accessibilityservice"
-                      android:resource="@xml/studymap_accessibility_service" />
-              </service>
-          '''
+        <service
+            android:name="com.studymap.StudyMapAccessibilityService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="false"
+            android:label="StudyMap Focus Lock">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/studymap_accessibility_service" />
+        </service>
+'''
 
           if "StudyMapAccessibilityService" not in manifest_text:
               manifest_text = manifest_text.replace(
