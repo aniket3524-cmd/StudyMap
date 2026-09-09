@@ -52,6 +52,9 @@ jobs:
           cp source_project/android/app/src/main/res/xml/studymap_accessibility_service.xml \
             temp_project/android/app/src/main/res/xml/studymap_accessibility_service.xml
 
+          sed -i '/android:description=/d' \
+            temp_project/android/app/src/main/res/xml/studymap_accessibility_service.xml
+
       - name: Configure Android package
         run: |
           python3 - <<'PY'
@@ -73,7 +76,8 @@ jobs:
           if 'id("com.google.gms.google-services")' not in text:
               text = text.replace(
                   'plugins {',
-                  'plugins {\n    id("com.google.gms.google-services")'
+                  'plugins {\n    id("com.google.gms.google-services")',
+                  1
               )
 
           build_file.write_text(text)
@@ -82,10 +86,9 @@ jobs:
           settings = settings_file.read_text()
 
           if 'com.google.gms.google-services' not in settings:
-              marker = 'plugins {'
               settings = settings.replace(
-                  marker,
-                  marker + '\n    id("com.google.gms.google-services") version "4.4.2" apply false',
+                  'plugins {',
+                  'plugins {\n    id("com.google.gms.google-services") version "4.4.2" apply false',
                   1
               )
 
