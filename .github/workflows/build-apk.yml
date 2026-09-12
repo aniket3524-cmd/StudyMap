@@ -22,7 +22,7 @@ jobs:
         with:
           channel: stable
 
-      - name: Extract StudyMap project
+      - name: Extract StudyMap V3 project
         run: |
           mkdir -p source_project
           unzip -o "StudyMap_FocusLock_HyperOS_Fix_V3.zip" -d source_project
@@ -41,31 +41,33 @@ jobs:
           mkdir -p temp_project/android/app/src/main/java/com/studymap
           mkdir -p temp_project/android/app/src/main/res/xml
 
-          cp source_project/android/app/src/main/java/com/studymap/MainActivity.java temp_project/android/app/src/main/java/com/studymap/MainActivity.java
+          cp source_project/android/app/src/main/java/com/studymap/MainActivity.java \
+            temp_project/android/app/src/main/java/com/studymap/MainActivity.java
 
-          cp source_project/android/app/src/main/java/com/studymap/StudyMapAccessibilityService.java temp_project/android/app/src/main/java/com/studymap/StudyMapAccessibilityService.java
+          cp source_project/android/app/src/main/java/com/studymap/StudyMapAccessibilityService.java \
+            temp_project/android/app/src/main/java/com/studymap/StudyMapAccessibilityService.java
 
-      - name: Fix Focus Lock Java
+      - name: Create minimal Accessibility XML
         run: |
-          FILE="temp_project/android/app/src/main/java/com/studymap/StudyMapAccessibilityService.java"
-
-          if ! grep -q "AccessibilityServiceInfo;" "$FILE"; then
-            sed -i '/^import android.accessibilityservice.AccessibilityService;/a import android.accessibilityservice.AccessibilityServiceInfo;' "$FILE"
-          fi
-
-      - name: Create Accessibility XML
-        run: |
-          printf '%s\n' '<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android" android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged" android:accessibilityFeedbackType="feedbackGeneric" android:notificationTimeout="100" android:canRetrieveWindowContent="false" />' > temp_project/android/app/src/main/res/xml/studymap_accessibility_service.xml
+          printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' \
+          '<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android" android:accessibilityEventTypes="typeWindowStateChanged" android:accessibilityFeedbackType="feedbackGeneric" android:notificationTimeout="100" android:canRetrieveWindowContent="false" />' \
+          > temp_project/android/app/src/main/res/xml/studymap_accessibility_service.xml
 
       - name: Configure Android package
         run: |
-          sed -i 's/namespace = "com.studymap.learning"/namespace = "com.studymap"/' temp_project/android/app/build.gradle.kts
-          sed -i 's/applicationId = "com.studymap.learning"/applicationId = "com.studymap"/' temp_project/android/app/build.gradle.kts
+          sed -i 's/namespace = "com.studymap.learning"/namespace = "com.studymap"/' \
+            temp_project/android/app/build.gradle.kts
+
+          sed -i 's/applicationId = "com.studymap.learning"/applicationId = "com.studymap"/' \
+            temp_project/android/app/build.gradle.kts
 
       - name: Configure Google Services
         run: |
-          sed -i '/^plugins {/a\    id("com.google.gms.google-services") version "4.4.2" apply false' temp_project/android/settings.gradle.kts
-          sed -i '/^plugins {/a\    id("com.google.gms.google-services")' temp_project/android/app/build.gradle.kts
+          sed -i '/^plugins {/a\    id("com.google.gms.google-services") version "4.4.2" apply false' \
+            temp_project/android/settings.gradle.kts
+
+          sed -i '/^plugins {/a\    id("com.google.gms.google-services")' \
+            temp_project/android/app/build.gradle.kts
 
       - name: Add Accessibility Service to Manifest
         run: |
@@ -94,5 +96,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: StudyMap-APK-FocusLock
+          name: StudyMap-APK-HyperOS-Fix-V3
           path: temp_project/build/app/outputs/flutter-apk/app-release.apk
