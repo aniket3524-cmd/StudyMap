@@ -25,7 +25,7 @@ jobs:
       - name: Extract StudyMap project
         run: |
           mkdir -p source_project
-          unzip -o "StudyMap_FocusLock_AllFeatures_Ready.zip" -d source_project
+          unzip -o "StudyMap_FocusLock_HyperOS_Fix_V3.zip" -d source_project
 
       - name: Create Flutter project
         run: |
