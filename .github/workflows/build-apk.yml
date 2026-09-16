@@ -22,10 +22,10 @@ jobs:
         with:
           channel: stable
 
-      - name: Extract StudyMap V3 project
+      - name: Extract StudyMap V5 project
         run: |
           mkdir -p source_project
-          unzip -o "StudyMap_FocusLock_HyperOS_Fix_V3.zip" -d source_project
+          unzip -o "StudyMap_FocusLock_UsageAccess_V5.zip" -d source_project
 
       - name: Create Flutter project
         run: |
@@ -36,46 +36,16 @@ jobs:
           cp source_project/lib/main.dart temp_project/lib/main.dart
           cp source_project/pubspec.yaml temp_project/pubspec.yaml
 
-      - name: Add Focus Lock files
+      - name: Copy Android files
         run: |
           mkdir -p temp_project/android/app/src/main/java/com/studymap
-          mkdir -p temp_project/android/app/src/main/res/xml
-
           cp source_project/android/app/src/main/java/com/studymap/MainActivity.java \
             temp_project/android/app/src/main/java/com/studymap/MainActivity.java
 
-      - name: Create minimal Accessibility Service
-        run: |
-          cat > temp_project/android/app/src/main/java/com/studymap/StudyMapAccessibilityService.java <<'EOF'
-          package com.studymap;
-
-          import android.accessibilityservice.AccessibilityService;
-          import android.view.accessibility.AccessibilityEvent;
-
-          public class StudyMapAccessibilityService extends AccessibilityService {
-
-              @Override
-              public void onAccessibilityEvent(AccessibilityEvent event) {
-                  // Minimal diagnostic service.
-                  // No runtime AccessibilityServiceInfo configuration.
-              }
-
-              @Override
-              public void onInterrupt() {
-              }
-          }
-          EOF
-
-      - name: Create Accessibility XML
-        run: |
-          cat > temp_project/android/app/src/main/res/xml/studymap_accessibility_service.xml <<'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-              android:accessibilityEventTypes="typeWindowStateChanged"
-              android:accessibilityFeedbackType="feedbackGeneric"
-              android:notificationTimeout="100"
-              android:canRetrieveWindowContent="false" />
-          EOF
+          if [ -f source_project/android/app/src/main/java/com/studymap/StudyMapUsageService.java ]; then
+            cp source_project/android/app/src/main/java/com/studymap/StudyMapUsageService.java \
+              temp_project/android/app/src/main/java/com/studymap/StudyMapUsageService.java
+          fi
 
       - name: Configure Android package
         run: |
@@ -93,9 +63,50 @@ jobs:
           sed -i '/^plugins {/a\    id("com.google.gms.google-services")' \
             temp_project/android/app/build.gradle.kts
 
-      - name: Add Accessibility Service to Manifest
+      - name: Add Usage Access permission
         run: |
-          python3 -c "from pathlib import Path; p=Path('temp_project/android/app/src/main/AndroidManifest.xml'); s=p.read_text(); x='<service android:name=\"com.studymap.StudyMapAccessibilityService\" android:permission=\"android.permission.BIND_ACCESSIBILITY_SERVICE\" android:exported=\"false\" android:label=\"StudyMap Focus Lock\"><intent-filter><action android:name=\"android.accessibilityservice.AccessibilityService\" /></intent-filter><meta-data android:name=\"android.accessibilityservice\" android:resource=\"@xml/studymap_accessibility_service\" /></service>'; p.write_text(s.replace('</application>',x+'</application>'))"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("temp_project/android/app/src/main/AndroidManifest.xml")
+          s = p.read_text()
+
+          permissions = '''
+          <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
+          <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+          '''
+
+          if "android.permission.PACKAGE_USAGE_STATS" not in s:
+              s = s.replace("<manifest", "<manifest" + permissions, 1)
+
+          p.write_text(s)
+          PY
+
+      - name: Add Usage Monitoring Service
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("temp_project/android/app/src/main/AndroidManifest.xml")
+          s = p.read_text()
+
+          service = '''
+          <service
+              android:name="com.studymap.StudyMapUsageService"
+              android:exported="false"
+              android:foregroundServiceType="specialUse">
+              <property
+                  android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                  android:value="StudyMap Focus Lock app usage monitoring" />
+          </service>
+          '''
+
+          if "StudyMapUsageService" in s:
+              raise SystemExit(0)
+
+          s = s.replace("</application>", service + "</application>")
+          p.write_text(s)
+          PY
 
       - name: Add Firebase
         working-directory: temp_project
@@ -120,5 +131,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: StudyMap-APK-HyperOS-Diagnostic-V4
+          name: StudyMap-FocusLock-V5
           path: temp_project/build/app/outputs/flutter-apk/app-release.apk
