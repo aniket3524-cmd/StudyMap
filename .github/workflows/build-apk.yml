@@ -35,7 +35,7 @@ jobs:
           rm -rf source_project
           mkdir -p source_project
 
-          unzip -o "StudyMap_FocusLock_UsageAccess_V5.zip" \
+          unzip -o "StudyMap_FocusLock_UsageAccess_V5_FIXED.zip" \
             -d source_project
 
           echo "===== Extracted files ====="
